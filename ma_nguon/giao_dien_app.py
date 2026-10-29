@@ -41,6 +41,7 @@ THONG_TIN_BIEN_BAO = {
     'Cấm rẽ trái': {'nhom': '🔴 Biển cấm', 'y_nghia': 'Cấm tất cả các loại xe rẽ trái tại nút giao.', 'muc_phat': 'Xe máy: 800k - 1 triệu | Ô tô: 2-3 triệu'},
     'Cấm rẽ phải': {'nhom': '🔴 Biển cấm', 'y_nghia': 'Cấm tất cả các loại xe rẽ phải tại nút giao.', 'muc_phat': 'Xe máy: 800k - 1 triệu | Ô tô: 2-3 triệu'},
     'Cấm quay đầu xe': {'nhom': '🔴 Biển cấm', 'y_nghia': 'Cấm các loại xe quay đầu lại theo hướng ngược lại.', 'muc_phat': 'Xe máy: 100k-200k | Ô tô: 400k-600k'},
+    'Đường bị hẹp cả hai bên': {'nhom': '🟡 Biển cảnh báo', 'y_nghia': 'Báo trước sắp đến đoạn đường bị hẹp đột ngột cả hai bên.', 'muc_phat': 'Chú ý giảm tốc độ và nhường đường cho xe đi ngược chiều.'},
     'Giao nhau có tín hiệu đèn': {'nhom': '🟡 Biển cảnh báo', 'y_nghia': 'Báo trước nơi giao nhau có đèn giao thông.', 'muc_phat': 'Yêu cầu quan sát tín hiệu đèn.'},
     'Cấm dừng xe và đỗ xe': {'nhom': '🔴 Biển cấm', 'y_nghia': 'Cấm tất cả phương tiện dừng xe và đỗ xe.', 'muc_phat': 'Xe máy: 300k-400k | Ô tô: 800k-1 triệu'},
     'Cấm đỗ xe': {'nhom': '🔴 Biển cấm', 'y_nghia': 'Cấm phương tiện đỗ xe (vẫn được dừng ngắn hạn).', 'muc_phat': 'Xe máy: 300k-400k | Ô tô: 400k-600k'},
@@ -51,6 +52,36 @@ THONG_TIN_BIEN_BAO = {
     'Đèn đỏ': {'nhom': '🚦 Đèn tín hiệu', 'y_nghia': 'Đèn đỏ: Bắt buộc dừng lại trước vạch.', 'muc_phat': 'Vượt đèn đỏ: Xe máy 800k-1tr | Ô tô 4tr-6tr'},
     'Điểm dừng xe buýt': {'nhom': '🔷 Biển chỉ dẫn', 'y_nghia': 'Nơi đón trả khách của xe buýt.', 'muc_phat': 'Cấm đỗ xe cá nhân tại điểm xe buýt'}
 }
+
+def lay_thong_tin_bien_bao(class_name):
+    """Lấy thông tin biển báo, tự động suy luận nhóm biển nếu tên nhãn chưa có trong DB"""
+    if class_name in THONG_TIN_BIEN_BAO:
+        return THONG_TIN_BIEN_BAO[class_name]
+    
+    # Tự động suy đoán nhóm biển từ tên nhãn
+    name_lower = class_name.lower()
+    if 'cấm' in name_lower or 'hạn chế' in name_lower:
+        nhom = '🔴 Biển cấm'
+        y_nghia = f'Biển cấm ({class_name}): Yêu cầu người tham gia giao thông chấp hành nghiêm chỉnh.'
+        muc_phat = 'Xe máy: 800k - 1 triệu | Ô tô: 2 - 3 triệu (Tuỳ hành vi)'
+    elif any(k in name_lower for k in ['nguy hiểm', 'chướng ngại', 'hẹp', 'ngoặt', 'đường', 'giao nhau', 'dốc', 'công trường']):
+        nhom = '🟡 Biển cảnh báo'
+        y_nghia = f'Biển cảnh báo ({class_name}): Lái xe cần giảm tốc độ và chú ý quan sát.'
+        muc_phat = 'Chú ý giảm tốc độ an toàn khi lưu thông.'
+    elif any(k in name_lower for k in ['chỉ', 'làn', 'phải', 'trái', 'hiệu lệnh']):
+        nhom = '🔵 Biển hiệu lệnh'
+        y_nghia = f'Biển hiệu lệnh ({class_name}): Bắt buộc các phương tiện phải thi hành.'
+        muc_phat = 'Xe máy: 100k - 200k | Ô tô: 300k - 400k'
+    elif any(k in name_lower for k in ['đèn', 'xanh', 'đỏ', 'vàng']):
+        nhom = '🚦 Đèn tín hiệu'
+        y_nghia = f'Tín hiệu đèn giao thông ({class_name}).'
+        muc_phat = 'Không chấp hành: Xe máy 800k - 1tr | Ô tô 4tr - 6tr'
+    else:
+        nhom = '🔷 Biển chỉ dẫn / Khác'
+        y_nghia = f'Biển chỉ dẫn/Thông tin ({class_name}).'
+        muc_phat = 'Tuân thủ hướng dẫn theo QCVN 41:2019/BGTVT.'
+        
+    return {'nhom': nhom, 'y_nghia': y_nghia, 'muc_phat': muc_phat}
 
 # ---------------------------------------------------------
 # HÀM PHÁT ÂM THANH CẢNH BÁO (TTS)
@@ -70,35 +101,36 @@ def phat_canh_bao_giong_noi(danh_sach_bien):
         st.caption(f"📢 Cảnh báo âm thanh: {text}")
 
 # ---------------------------------------------------------
-# HÀM LÀM NẾT VÙNG ẢNH CẮT (ENHANCEMENT)
+# HÀM LÀM NẾT VÙNG ẢNH CẮT (ENHANCEMENT BẰNG LANCZOS4)
 # ---------------------------------------------------------
-def lam_net_anh_bien_bao(crop_img, target_size=250):
+def lam_net_anh_bien_bao(crop_img, target_size=300):
     h, w = crop_img.shape[:2]
     if h == 0 or w == 0:
         return crop_img
-    scale = target_size / max(h, w)
+    
+    # Phóng to bằng Lanczos4 giữ chi tiết sắc nét hơn hẳn
+    scale = max(1.0, target_size / max(h, w))
     new_w, new_h = int(w * scale), int(h * scale)
-    upscaled = cv2.resize(crop_img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
-    lab = cv2.cvtColor(upscaled, cv2.COLOR_RGB2LAB)
-    l, a, b = cv2.split(lab)
-    clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
-    cl = clahe.apply(l)
-    limg = cv2.merge((cl, a, b))
-    enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2RGB)
-    kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
+    upscaled = cv2.resize(crop_img, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
+    
+    # Cân bằng độ sáng tương phản nhẹ trên kênh YUV
+    yuv = cv2.cvtColor(upscaled, cv2.COLOR_RGB2YUV)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(6, 6))
+    yuv[:, :, 0] = clahe.apply(yuv[:, :, 0])
+    enhanced = cv2.cvtColor(yuv, cv2.COLOR_YUV2RGB)
+    
+    # Lọc làm sắc nét nhẹ
+    kernel = np.array([[0, -0.5, 0], [-0.5, 3, -0.5], [0, -0.5, 0]])
     return cv2.filter2D(enhanced, -1, kernel)
 
 # ---------------------------------------------------------
 # HÀM TỰ ĐỘNG DÒ TÌM & NẠP MÔ HÌNH
 # ---------------------------------------------------------
 def find_valid_weight_path(candidate_paths):
-    """Tự động tìm file weights tồn tại đầu tiên trong thư mục script hoặc gốc"""
     for p in candidate_paths:
-        # 1. Tìm đường dẫn tương đối từ thư mục ma_nguon/
         abs_path = os.path.join(BASE_DIR, p)
         if os.path.exists(abs_path):
             return abs_path
-        # 2. Tìm đường dẫn từ gốc làm việc hiện tại
         if os.path.exists(p):
             return p
     return None
@@ -111,7 +143,6 @@ def load_yolo_model(model_path):
 def load_rtdetr_model(model_path):
     return RTDETR(model_path)
 
-# Danh sách vị trí ưu tiên tìm file weights RT-DETR
 CANDIDATE_RTDETR_PATHS = [
     "rtdetr_best.pt",
     "best.pt",
@@ -119,11 +150,9 @@ CANDIDATE_RTDETR_PATHS = [
     "weights/best.pt",
     "best1.pt",
     "rtdetr_best1.pt",
-    "runs/detect/rtdetr_local/weights/best.pt",
-    "../du_lieu/tho/dataset_cropped/weights/rtdetr_best.pt"
+    "runs/detect/rtdetr_local/weights/best.pt"
 ]
 
-# Danh sách vị trí ưu tiên tìm file weights YOLOv8
 CANDIDATE_YOLOV8_PATHS = [
     "yolov8_best.pt",
     "best.pt",
@@ -155,7 +184,6 @@ option = st.sidebar.radio("Tùy chọn đầu vào:", ["Tải ảnh lên", "Ch�
 
 # Giao diện tiêu đề
 st.title("🚦 HỆ THỐNG NHẬN DIỆN VÀ TRA CỨU BIỂN BÁO GIAO THÔNG VIỆT NAM")
-st.write(f"Đang sử dụng cấu hình thuật toán: **{model_choice}**")
 st.markdown("---")
 
 # ---------------------------------------------------------
@@ -169,19 +197,15 @@ yolov8_path = find_valid_weight_path(CANDIDATE_YOLOV8_PATHS)
 
 if "RT-DETR" in model_choice and "So sánh" not in model_choice:
     if rtdetr_path:
-        # st.success(f"🎯 Đã nạp thành công mô hình RT-DETR custom từ: `{rtdetr_path}`")
         model_primary = load_rtdetr_model(rtdetr_path)
     else:
-        st.error("❌ **KHÔNG TÌM THẤY WEIGHTS TRAIN RT-DETR!** Hãy copy file `rtdetr_best.pt` vào thư mục `ma_nguon/`.")
-        st.warning("⚠️ Đang nạp tạm weights COCO mặc định (`rtdetr-l.pt`). Kết quả nhận diện sẽ xuất hiện lớp car, person, clock,...")
+        st.error("❌ KHÔNG TÌM THẤY WEIGHTS TRAIN RT-DETR!")
         model_primary = load_rtdetr_model("rtdetr-l.pt")
 
 elif "YOLOv8n" in model_choice:
     if yolov8_path:
-        # st.success(f"🎯 Đã nạp thành công mô hình YOLOv8 custom từ: `{yolov8_path}`")
         model_primary = load_yolo_model(yolov8_path)
     else:
-        st.warning("⚠️ Chưa tìm thấy file weights YOLOv8 custom. Đang nạp tạm YOLOv8n chuẩn.")
         model_primary = load_yolo_model("yolov8n.pt")
 
 elif "So sánh song song" in model_choice:
@@ -206,7 +230,6 @@ if option in ["Tải ảnh lên", "Chụp ảnh từ Camera"]:
         img_np = np.array(image_to_process)
         img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
-        # CHẾ ĐỘ 1: CHẠY ĐƠN MÔ HÌNH
         if model_secondary is None:
             col1, col2 = st.columns(2)
             with col1:
@@ -223,61 +246,59 @@ if option in ["Tải ảnh lên", "Chụp ảnh từ Camera"]:
 
             boxes = results[0].boxes
 
-        # CHẾ ĐỘ 2: SO SÁNH SONG SONG 2 MÔ HÌNH (YOLOv8 vs RT-DETR)
         else:
             st.subheader("⚔️ KẾT QUẢ SO SÁNH ĐỐI CHIẾU THUẬT TOÁN")
             col1, col2 = st.columns(2)
             
-            # Mô hình 1: YOLOv8
             res1 = model_primary.predict(source=img_cv, conf=conf_threshold)
             res1_rgb = cv2.cvtColor(res1[0].plot(), cv2.COLOR_BGR2RGB)
             with col1:
                 st.markdown("### 🔹 Thuật toán 1: YOLOv8n")
                 st.image(res1_rgb, use_container_width=True)
-                st.caption(f"Số lượng biển phát hiện: {len(res1[0].boxes)}")
 
-            # Mô hình 2: RT-DETR
             res2 = model_secondary.predict(source=img_cv, conf=conf_threshold)
             res2_rgb = cv2.cvtColor(res2[0].plot(), cv2.COLOR_BGR2RGB)
             with col2:
-                st.markdown("### 🔸 Thuật toán 2: RT-DETR (Transformer)")
+                st.markdown("### 🔸 Thuật toán 2: RT-DETR")
                 st.image(res2_rgb, use_container_width=True)
-                st.caption(f"Số lượng biển phát hiện: {len(res2[0].boxes)}")
 
-            boxes = res2[0].boxes # Lấy bboxes của RT-DETR để hiển thị chi tiết bên dưới
+            boxes = res2[0].boxes
 
         # HIỂN THỊ CHI TIẾT VÀ TRÍCH XUẤT ẢNH CẮT
         if len(boxes) > 0:
             detected_names = []
             st.markdown("---")
-            st.subheader("✂️ Vùng biển báo trích xuất (Đã làm nét):")
+            st.subheader("✂️ Vùng biển báo trích xuất (Đã tối ưu làm nét):")
             
             cols = st.columns(min(len(boxes), 4))
             detected_items = []
             
+            h, w, _ = img_np.shape
             for idx, box in enumerate(boxes):
                 cls_id = int(box.cls[0])
                 class_name = model_primary.names[cls_id] if model_secondary is None else model_secondary.names[cls_id]
                 confidence = float(box.conf[0]) * 100
                 detected_names.append(class_name)
                 
-                info = THONG_TIN_BIEN_BAO.get(class_name, {
-                    'nhom': '⚪ Biển báo khác / Chưa phân loại',
-                    'y_nghia': 'Biển báo giao thông theo chuẩn QCVN 41:2019/BGTVT.',
-                    'muc_phat': 'Tuân thủ biển báo khi tham gia giao thông.'
-                })
+                # Hàm tra cứu / suy đoán nhóm biển
+                info = lay_thong_tin_bien_bao(class_name)
                 
+                # Cắt ảnh có bổ sung lề Padding 10%
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
-                h, w, _ = img_np.shape
-                x1, y1 = max(0, x1), max(0, y1)
-                x2, y2 = min(w, x2), min(h, y2)
+                pad_x = int((x2 - x1) * 0.10)
+                pad_y = int((y2 - y1) * 0.10)
                 
-                cropped_img = img_np[y1:y2, x1:x2]
-                enhanced_crop = lam_net_anh_bien_bao(cropped_img, target_size=250)
+                crop_x1 = max(0, x1 - pad_x)
+                crop_y1 = max(0, y1 - pad_y)
+                crop_x2 = min(w, x2 + pad_x)
+                crop_y2 = min(h, y2 + pad_y)
+                
+                cropped_img = img_np[crop_y1:crop_y2, crop_x1:crop_x2]
+                enhanced_crop = lam_net_anh_bien_bao(cropped_img, target_size=300)
                 
                 col_idx = idx % 4
                 with cols[col_idx]:
-                    st.image(enhanced_crop, caption=f"{class_name} ({confidence:.1f}%)", width=220)
+                    st.image(enhanced_crop, caption=f"{class_name} ({confidence:.1f}%)", width=240)
                 
                 detected_items.append({
                     "Nhóm biển": info['nhom'],
@@ -294,7 +315,7 @@ if option in ["Tải ảnh lên", "Chụp ảnh từ Camera"]:
             st.subheader("📊 Bảng chi tiết nhận diện & Tra cứu mức phạt:")
             st.table(detected_items)
         else:
-            st.warning("⚠️ Không phát hiện biển báo nào trong ảnh (hoặc độ tin cậy thấp hơn ngưỡng).")
+            st.warning("⚠️ Không phát hiện biển báo nào trong ảnh.")
 
 # ==================== XỬ LÝ VIDEO ====================
 elif option == "Tải video lên":
@@ -328,7 +349,7 @@ elif option == "Tải video lên":
                     cls_id = int(box.cls[0])
                     class_name = model_primary.names[cls_id]
                     confidence = float(box.conf[0]) * 100
-                    info = THONG_TIN_BIEN_BAO.get(class_name, {'nhom': '⚪ Chưa phân loại', 'muc_phat': 'Chưa rõ'})
+                    info = lay_thong_tin_bien_bao(class_name)
                     
                     if class_name not in detected_dict or confidence > detected_dict[class_name]['conf']:
                         detected_dict[class_name] = {'conf': confidence, 'nhom': info['nhom'], 'muc_phat': info['muc_phat']}
