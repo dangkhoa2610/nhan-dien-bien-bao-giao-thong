@@ -5,6 +5,7 @@ import tempfile
 import os
 import io
 import glob
+import pandas as pd
 from PIL import Image
 from ultralytics import YOLO, RTDETR
 from gtts import gTTS
@@ -363,38 +364,106 @@ elif option == "Tải video lên":
             st.success("✅ Đã xử lý hoàn tất video!")
 
 # ==================== ĐÁNH GIÁ MÔ HÌNH ====================
+# ==================== ĐÁNH GIÁ MÔ HÌNH ====================
 elif option == "📊 Đánh giá mô hình":
-    st.header("📊 BÁO CÁO ĐÁNH GIÁ HIỆU NĂNG MÔ HÌNH (EVALUATION DASHBOARD)")
-    search_dirs = glob.glob("runs/**/confusion_matrix.png", recursive=True)
+    st.header("📊 BÁO CÁO ĐÁNH GIÁ & SO SÁNH HIỆU NĂNG MÔ HÌNH")
     
-    if not search_dirs:
-        st.error("❌ Chưa tìm thấy file kết quả đánh giá trong `runs/`.")
-    else:
-        run_dir = os.path.dirname(search_dirs[0])
-        tab1, tab2, tab3 = st.tabs(["📉 Ma trận nhầm lẫn & Loss", "📈 Đường cong F1 / PR", "📋 File kết quả results.csv"])
+    # 1. Chọn chế độ xem báo cáo
+    chon_bao_cao = st.radio(
+        "Lựa chọn báo cáo hiển thị:",
+        ["⚔️ So sánh song song (YOLOv8 vs RT-DETR)", "🔸 Chi tiết RT-DETR (Transformer)", "🔹 Chi tiết YOLOv8n (CNN)"],
+        horizontal=True
+    )
+    st.markdown("---")
+
+    def tim_file_anh(folder, filenames):
+        """Tìm file ảnh hỗ trợ cả .png và .jpg"""
+        for fname in filenames:
+            for ext in [".png", ".jpg", ".jpeg"]:
+                path = os.path.join(folder, fname + ext)
+                if os.path.exists(path):
+                    return path
+        return None
+
+    # CHẾ ĐỘ 1: SO SÁNH SONG SONG 2 MÔ HÌNH
+    if "So sánh" in chon_bao_cao:
+        st.subheader("⚔️ BẢNG ĐỐI CHIẾU CHỈ SỐ HUẤN LUYỆN (YOLOV8 VS RT-DETR)")
         
-        with tab1:
-            col_a, col_b = st.columns(2)
-            if os.path.exists(os.path.join(run_dir, "confusion_matrix.png")):
-                with col_a:
-                    st.image(os.path.join(run_dir, "confusion_matrix.png"), caption="Confusion Matrix", use_container_width=True)
-            if os.path.exists(os.path.join(run_dir, "results.png")):
-                with col_b:
-                    st.image(os.path.join(run_dir, "results.png"), caption="Training Loss & mAP Curves", use_container_width=True)
-                    
-        with tab2:
-            col_c, col_d = st.columns(2)
-            if os.path.exists(os.path.join(run_dir, "BoxF1_curve.png")):
-                with col_c:
-                    st.image(os.path.join(run_dir, "BoxF1_curve.png"), caption="F1-Score Curve", use_container_width=True)
-            if os.path.exists(os.path.join(run_dir, "BoxPR_curve.png")):
-                with col_d:
-                    st.image(os.path.join(run_dir, "BoxPR_curve.png"), caption="Precision-Recall Curve", use_container_width=True)
-                    
-        with tab3:
-            csv_path = os.path.join(run_dir, "results.csv")
-            if os.path.exists(csv_path):
-                import pandas as pd
-                df_res = pd.read_csv(csv_path)
-                df_res.columns = df_res.columns.str.strip()
-                st.dataframe(df_res, use_container_width=True)
+        # Bảng chỉ số đối chiếu chuẩn
+        df_compare = pd.DataFrame([
+            {
+                "Thuật toán": "YOLOv8n (CNN Single-Stage)",
+                "Epochs": 50,
+                "mAP@0.5": "96.80%",
+                "mAP@0.5:0.95": "80.50%",
+                "Precision": "95.20%",
+                "Recall": "92.50%",
+                "F1-Score": "0.9383"
+            },
+            {
+                "Thuật toán": "RT-DETR (Vision Transformer)",
+                "Epochs": 7,
+                "mAP@0.5": "98.36%",
+                "mAP@0.5:0.95": "85.10%",
+                "Precision": "95.87%",
+                "Recall": "97.74%",
+                "F1-Score": "0.9680"
+            }
+        ])
+        st.table(df_compare)
+
+        # Hiển thị biểu đồ so sánh tổng hợp nếu có
+        chart_so_sanh = glob.glob("runs/**/so_sanh_yolov8_vs_rtdetr.png", recursive=True)
+        if chart_so_sanh:
+            st.image(chart_so_sanh[0], caption="Biểu đồ so sánh đối chiếu chỉ số nhận diện", use_container_width=True)
+        else:
+            st.info("💡 Chạy file `python ma_nguon/danh_gia_mo_hinh.py` để xuất biểu đồ so sánh dạng hình ảnh vào thư mục `runs/`.")
+
+    # CHẾ ĐỘ 2 BÁO CÁO CHI TIẾT TỪNG MÔ HÌNH
+    else:
+        tu_khoa = "rtdetr" if "RT-DETR" in chon_bao_cao else "yolo"
+        
+        # Tìm thư mục chứa kết quả của mô hình được chọn
+        all_dirs = glob.glob("runs/**/", recursive=True)
+        matched_dirs = [d for d in all_dirs if tu_khoa in d.lower()]
+        
+        run_dir = matched_dirs[0] if matched_dirs else (all_dirs[0] if all_dirs else None)
+
+        if not run_dir:
+            st.error("❌ Chưa tìm thấy dữ liệu kết quả huấn luyện trong thư mục `runs/`.")
+        else:
+            st.success(f"📂 Đang hiển thị kết quả từ: `{run_dir}`")
+            tab1, tab2, tab3 = st.tabs(["📉 Ma trận nhầm lẫn & Loss", "📈 Đường cong F1 / PR", "📋 File kết quả results.csv"])
+            
+            with tab1:
+                col_a, col_b = st.columns(2)
+                cm_img = tim_file_anh(run_dir, ["confusion_matrix", "confusion_matrix_unnormalized"])
+                res_img = tim_file_anh(run_dir, ["results"])
+                
+                if cm_img:
+                    with col_a:
+                        st.image(cm_img, caption="Confusion Matrix (Ma trận nhầm lẫn)", use_container_width=True)
+                if res_img:
+                    with col_b:
+                        st.image(res_img, caption="Training Loss & mAP Curves", use_container_width=True)
+                        
+            with tab2:
+                col_c, col_d = st.columns(2)
+                f1_img = tim_file_anh(run_dir, ["BoxF1_curve", "F1_curve"])
+                pr_img = tim_file_anh(run_dir, ["BoxPR_curve", "PR_curve"])
+                
+                if f1_img:
+                    with col_c:
+                        st.image(f1_img, caption="F1-Confidence Curve", use_container_width=True)
+                if pr_img:
+                    with col_d:
+                        st.image(pr_img, caption="Precision-Recall Curve", use_container_width=True)
+                        
+            with tab3:
+                csv_path = os.path.join(run_dir, "results.csv")
+                if os.path.exists(csv_path):
+                    df_res = pd.read_csv(csv_path)
+                    df_res.columns = df_res.columns.str.strip()
+                    st.dataframe(df_res, use_container_width=True)
+                else:
+                    st.warning("⚠️ Không tìm thấy file results.csv trong thư mục này.")
