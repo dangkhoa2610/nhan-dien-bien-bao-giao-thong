@@ -4,5 +4,3 @@ opencv-python-headless
 gTTS
 pillow
 pandas
-torch
-torchvision

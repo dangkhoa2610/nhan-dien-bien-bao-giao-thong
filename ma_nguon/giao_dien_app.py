@@ -169,7 +169,7 @@ yolov8_path = find_valid_weight_path(CANDIDATE_YOLOV8_PATHS)
 
 if "RT-DETR" in model_choice and "So sánh" not in model_choice:
     if rtdetr_path:
-        st.success(f"🎯 Đã nạp thành công mô hình RT-DETR custom từ: `{rtdetr_path}`")
+        # st.success(f"🎯 Đã nạp thành công mô hình RT-DETR custom từ: `{rtdetr_path}`")
         model_primary = load_rtdetr_model(rtdetr_path)
     else:
         st.error("❌ **KHÔNG TÌM THẤY WEIGHTS TRAIN RT-DETR!** Hãy copy file `rtdetr_best.pt` vào thư mục `ma_nguon/`.")
@@ -178,7 +178,7 @@ if "RT-DETR" in model_choice and "So sánh" not in model_choice:
 
 elif "YOLOv8n" in model_choice:
     if yolov8_path:
-        st.success(f"🎯 Đã nạp thành công mô hình YOLOv8 custom từ: `{yolov8_path}`")
+        # st.success(f"🎯 Đã nạp thành công mô hình YOLOv8 custom từ: `{yolov8_path}`")
         model_primary = load_yolo_model(yolov8_path)
     else:
         st.warning("⚠️ Chưa tìm thấy file weights YOLOv8 custom. Đang nạp tạm YOLOv8n chuẩn.")
